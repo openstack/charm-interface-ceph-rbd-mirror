@@ -1,0 +1,11 @@
+name: ceph-rbd-mirror
+summary: Ceph RBD Mirror Interface
+maintainer: OpenStack Charmers <openstack-charmers@lists.ubuntu.com>
+repo: https://github.com/openstack-charmers/charm-interface-ceph-rbd-mirror.git
+ignore:
+  - 'unit_tests'
+  - '.stestr.conf'
+  - 'test-requirements.txt'
+  - 'tox.ini'
+  - '.gitignore'
+  - '.travis.yml'
