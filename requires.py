@@ -65,3 +65,7 @@ class CephRBDMirrorRequires(Endpoint):
                     yield '[{}]:{}'.format(addr, port)
                 else:
                     yield '{}:{}'.format(addr, port)
+
+    @property
+    def key(self):
+        return self.all_units.received['key']
