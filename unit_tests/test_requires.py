@@ -29,19 +29,14 @@ class TestRegisteredHooks(test_utils.TestRegisteredHooks):
             'when': {
                 'joined': (
                     'endpoint.{endpoint_name}.joined',),
-            },
-            'when_all': {
                 'changed': (
-                    'endpoint.{endpoint_name}.changed.auth',
-                    'endpoint.{endpoint_name}.changed.key',
-                    'endpoint.{endpoint_name}.changed.ceph-public-address',),
+                    'endpoint.{endpoint_name}.changed',),
             },
             'when_not': {
                 'broken': ('endpoint.{endpoint_name}.joined',),
             },
         }
-        # test that the hooks were registered via the
-        # reactive.barbican_handlers
+        # test that the hooks were registered
         self.registered_hooks_test_helper(requires, hook_set, defaults)
 
 
@@ -50,7 +45,7 @@ class TestCephRBDMirrorRequires(test_utils.PatchHelper):
     def setUp(self):
         super().setUp()
         self.requires_class = requires.CephRBDMirrorRequires(
-            'some-relation', [])
+            'some-endpoint', [], unique_id='some-hostname')
         self._patches = {}
         self._patches_start = {}
 
@@ -81,44 +76,52 @@ class TestCephRBDMirrorRequires(test_utils.PatchHelper):
     def test_joined(self):
         self.patch_object(requires, 'set_flag')
         self.requires_class.joined()
-        self.set_flag.assert_called_once_with('some-relation.connected')
+        self.set_flag.assert_called_once_with('some-endpoint.connected')
 
     def test_changed(self):
+        self.patch_object(requires, 'all_flags_set')
         self.patch_object(requires, 'clear_flag')
         self.patch_object(requires, 'set_flag')
+        self.all_flags_set.return_value = True
         self.requires_class.changed()
+        self.all_flags_set.assert_called_with(
+            'endpoint.some-endpoint.changed.auth',
+            'endpoint.some-endpoint.changed.some-hostname_key',
+            'endpoint.some-endpoint.changed.ceph-public-address',
+        )
         self.clear_flag.assert_has_calls([
-            mock.call('endpoint.some-relation.changed.auth'),
-            mock.call('endpoint.some-relation.changed.key'),
-            mock.call('endpoint.some-relation.changed.ceph-public-address'),
+            mock.call('endpoint.some-endpoint.changed.auth'),
+            mock.call('endpoint.some-endpoint.changed.some-hostname_key'),
+            mock.call('endpoint.some-endpoint.changed.ceph-public-address'),
         ])
-        self.set_flag.assert_called_once_with('some-relation.available')
+        self.set_flag.assert_called_once_with('some-endpoint.available')
 
     def test_broken(self):
         self.patch_object(requires, 'clear_flag')
         self.requires_class.broken()
         self.clear_flag.assert_has_calls([
-            mock.call('some-relation.available'),
-            mock.call('some-relation.connected'),
+            mock.call('some-endpoint.available'),
+            mock.call('some-endpoint.connected'),
         ])
 
     def test_request_key(self):
-        self.patch_object(requires, 'socket')
-        self.socket.gethostname.return_value = 'somehostname'
         to_publish = self.patch_topublish()
         self.requires_class.request_key()
-        to_publish.__setitem__.assert_called_with('unique_id', 'somehostname')
-        self.requires_class.request_key(unique_id='unicorn')
-        to_publish.__setitem__.assert_called_with('unique_id', 'unicorn')
+        to_publish.__setitem__.assert_called_with('unique_id', 'some-hostname')
 
     def test_mon_hosts(self):
         self.patch_requires_class('_relations')
         relation = mock.MagicMock()
+        unit_incomplete = mock.MagicMock()
+        unit_incomplete.received = {}
+        unit_invalid = mock.MagicMock()
+        unit_invalid.received = {'ceph-public-address': None}
         unitv6 = mock.MagicMock()
         unitv6.received = {'ceph-public-address': '2001:db8:42::1'}
         unitv4 = mock.MagicMock()
         unitv4.received = {'ceph-public-address': '192.0.2.1'}
-        relation.units.__iter__.return_value = [unitv6, unitv4]
+        relation.units.__iter__.return_value = [unit_incomplete, unitv6,
+                                                unit_invalid, unitv4]
         self._relations.__iter__.return_value = [relation]
         self.assertEqual(list(self.requires_class.mon_hosts),
                          ['[2001:db8:42::1]:6789', '192.0.2.1:6789'])
