@@ -137,8 +137,14 @@ class CephRBDMirrorRequires(Endpoint):
     def key(self):
         return self.all_joined_units.received[self.key_name]
 
-    @property
     def mon_hosts(self):
+        """
+        NOTE(fnordahl): As much as this should and could have been a property
+        we have pre-existing interfaces providing this as a function.  To be
+        able to use the same code for relation adaption etc in
+        ``charms.openstack`` we must keep having this as a function unless we
+        go back and change both to being properties.
+        """
         for relation in self.relations:
             for unit in relation.units:
                 try:
