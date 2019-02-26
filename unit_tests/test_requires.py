@@ -123,5 +123,5 @@ class TestCephRBDMirrorRequires(test_utils.PatchHelper):
         relation.units.__iter__.return_value = [unit_incomplete, unitv6,
                                                 unit_invalid, unitv4]
         self._relations.__iter__.return_value = [relation]
-        self.assertEqual(list(self.requires_class.mon_hosts),
+        self.assertEqual(list(self.requires_class.mon_hosts()),
                          ['[2001:db8:42::1]:6789', '192.0.2.1:6789'])
