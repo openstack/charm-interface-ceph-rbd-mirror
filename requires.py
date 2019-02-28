@@ -91,41 +91,52 @@ class CephRBDMirrorRequires(Endpoint):
                 raise
         return current_request
 
-    def create_pool(self, name, replicas=3, weight=None, pg_num=None,
-                    group=None, namespace=None, app_name=None):
+    def create_replicated_pool(self, name, replicas=3, weight=None,
+                               pg_num=None, group=None, namespace=None,
+                               app_name=None, max_bytes=None,
+                               max_objects=None):
+        """Request replicated pool setup.
         """
-        Request pool setup
-
-        :param name: Name of pool to create
-        :type name: str
-        :param replicas: Number of replicas for supporting pools
-        :type replicas: int
-        :param weight: The percentage of data the pool makes up
-        :type weight: int
-        :param pg_num: If not provided, this value will be calculated by the
-                       broker based on how many OSDs are in the cluster at the
-                       time of creation. Note that, if provided, this value
-                       will be capped at the current available maximum.
-        :type pg_num: int
-        :param group: Group to add pool to.
-        :type group: str
-        :param namespace: A group can optionally have a namespace defined that
-                          will be used to further restrict pool access.
-        :type namespace: str
-        :param app_name: Name of application using the pool (e.g. ``cephfs``,
-                         ``rbd``, ``rgw``)
-        :type app_name: str
-        """
+        # Ensure type of numeric values before sending over the wire
+        replicas = int(replicas) if replicas else None
+        weight = float(weight) if weight else None
+        pg_num = int(pg_num) if pg_num else None
+        max_bytes = int(max_bytes) if max_bytes else None
+        max_objects = int(max_objects) if max_objects else None
 
         current_request = self.get_current_request()
-        current_request.add_op_create_pool(
+        current_request.add_op_create_replicated_pool(
             name="{}".format(name),
             replica_count=replicas,
             pg_num=pg_num,
             weight=weight,
             group=group,
             namespace=namespace,
-            app_name=app_name)
+            app_name=app_name,
+            max_bytes=max_bytes,
+            max_objects=max_objects)
+        ch_ceph.send_request_if_needed(current_request,
+                                       relation=self.endpoint_name)
+
+    def create_erasure_pool(self, name, erasure_profile=None, weight=None,
+                            group=None, app_name=None, max_bytes=None,
+                            max_objects=None):
+        """Request erasure coded pool setup.
+        """
+        # Ensure type of numeric values before sending over the wire
+        weight = float(weight) if weight else None
+        max_bytes = int(max_bytes) if max_bytes else None
+        max_objects = int(max_objects) if max_objects else None
+
+        current_request = self.get_current_request()
+        current_request.add_op_create_erasure_pool(
+            name="{}".format(name),
+            erasure_profile=erasure_profile,
+            weight=weight,
+            group=group,
+            app_name=app_name,
+            max_bytes=max_bytes,
+            max_objects=max_objects)
         ch_ceph.send_request_if_needed(current_request,
                                        relation=self.endpoint_name)
 
