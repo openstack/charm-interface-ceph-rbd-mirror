@@ -109,6 +109,63 @@ class TestCephRBDMirrorRequires(test_utils.PatchHelper):
         self.requires_class.request_key()
         to_publish.__setitem__.assert_called_with('unique_id', 'some-hostname')
 
+    def test_create_replicated_pool(self):
+        self.patch_requires_class('_relations')
+        relation = mock.MagicMock()
+        relation.relation_id = 'some-endpoint:42'
+        self._relations.__iter__.return_value = [relation]
+        self.patch_object(requires.ch_ceph, 'get_previous_request')
+        broker_req = mock.MagicMock()
+        broker_req.ops = [{'op': 'create-pool', 'name': 'rbd'}]
+        self.get_previous_request.return_value = broker_req
+        self.requires_class.create_replicated_pool('rbd')
+        self.assertFalse(broker_req.add_op_create_replicated_pool.called)
+        self.get_previous_request.return_value = None
+        self.patch_object(requires.ch_ceph, 'CephBrokerRq')
+        self.CephBrokerRq.return_value = broker_req
+        self.requires_class.create_replicated_pool('rbd')
+        self.CephBrokerRq.assert_called_with()
+        self.assertFalse(broker_req.add_op_create_replicated_pool.called)
+        broker_req = mock.MagicMock()
+        self.CephBrokerRq.return_value = broker_req
+        self.patch_object(requires.ch_ceph, 'send_request_if_needed')
+        self.requires_class.create_replicated_pool('rbd')
+        broker_req.add_op_create_replicated_pool.assert_called_once_with(
+            app_name=None, group=None, max_bytes=None, max_objects=None,
+            name='rbd', namespace=None, pg_num=None, replica_count=3,
+            weight=None)
+        self.send_request_if_needed.assert_called_once_with(
+            broker_req,
+            relation='some-endpoint')
+
+    def test_create_erasure_pool(self):
+        self.patch_requires_class('_relations')
+        relation = mock.MagicMock()
+        relation.relation_id = 'some-endpoint:42'
+        self._relations.__iter__.return_value = [relation]
+        self.patch_object(requires.ch_ceph, 'get_previous_request')
+        broker_req = mock.MagicMock()
+        broker_req.ops = [{'op': 'create-pool', 'name': 'rbd'}]
+        self.get_previous_request.return_value = broker_req
+        self.requires_class.create_erasure_pool('rbd')
+        self.assertFalse(broker_req.add_op_create_erasure_pool.called)
+        self.get_previous_request.return_value = None
+        self.patch_object(requires.ch_ceph, 'CephBrokerRq')
+        self.CephBrokerRq.return_value = broker_req
+        self.requires_class.create_erasure_pool('rbd')
+        self.CephBrokerRq.assert_called_with()
+        self.assertFalse(broker_req.add_op_create_erasure_pool.called)
+        broker_req = mock.MagicMock()
+        self.CephBrokerRq.return_value = broker_req
+        self.patch_object(requires.ch_ceph, 'send_request_if_needed')
+        self.requires_class.create_erasure_pool('rbd')
+        broker_req.add_op_create_erasure_pool.assert_called_once_with(
+            app_name=None, erasure_profile=None, group=None, max_bytes=None,
+            max_objects=None, name='rbd', weight=None)
+        self.send_request_if_needed.assert_called_once_with(
+            broker_req,
+            relation='some-endpoint')
+
     def test_mon_hosts(self):
         self.patch_requires_class('_relations')
         relation = mock.MagicMock()

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import ipaddress
-import json
 import socket
 
 # the reactive framework unfortunately does not grok `import as` in conjunction
@@ -75,22 +74,6 @@ class CephRBDMirrorRequires(Endpoint):
         for relation in self.relations:
             relation.to_publish['unique_id'] = self.unique_id
 
-    def get_current_request(self):
-        """
-        Retrieve the current Ceph broker request.
-
-        If no request has been created yet then create a new one.
-        """
-        json_rq = self.all_joined_units.received['broker_req']
-        current_request = ch_ceph.CephBrokerRq()
-        if json_rq:
-            try:
-                j = json.loads(json_rq)
-                current_request.set_ops(j['ops'])
-            except (KeyError, json.decoder.JSONDecodeError):
-                raise
-        return current_request
-
     def create_replicated_pool(self, name, replicas=3, weight=None,
                                pg_num=None, group=None, namespace=None,
                                app_name=None, max_bytes=None,
@@ -104,7 +87,13 @@ class CephRBDMirrorRequires(Endpoint):
         max_bytes = int(max_bytes) if max_bytes else None
         max_objects = int(max_objects) if max_objects else None
 
-        current_request = self.get_current_request()
+        current_request = ch_ceph.get_previous_request(
+            self.relations[0].relation_id) or ch_ceph.CephBrokerRq()
+        for req in current_request.ops:
+            if 'op' in req and 'name' in req:
+                if req['op'] == 'create-pool' and req['name'] == name:
+                    # request already exists, don't create a new one
+                    return
         current_request.add_op_create_replicated_pool(
             name="{}".format(name),
             replica_count=replicas,
@@ -128,7 +117,13 @@ class CephRBDMirrorRequires(Endpoint):
         max_bytes = int(max_bytes) if max_bytes else None
         max_objects = int(max_objects) if max_objects else None
 
-        current_request = self.get_current_request()
+        current_request = ch_ceph.get_previous_request(
+            self.relations[0].relation_id) or ch_ceph.CephBrokerRq()
+        for req in current_request.ops:
+            if 'op' in req and 'name' in req:
+                if req['op'] == 'create-pool' and req['name'] == name:
+                    # request already exists, don't create a new one
+                    return
         current_request.add_op_create_erasure_pool(
             name="{}".format(name),
             erasure_profile=erasure_profile,
