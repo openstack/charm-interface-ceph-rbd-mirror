@@ -166,6 +166,13 @@ class TestCephRBDMirrorRequires(test_utils.PatchHelper):
             broker_req,
             relation='some-endpoint')
 
+    def test_refresh_pools(self):
+        self.patch_object(requires.uuid, 'uuid4')
+        self.uuid4.return_value = 'FAKE-UUID'
+        to_publish = self.patch_topublish()
+        self.requires_class.refresh_pools()
+        to_publish.__setitem__.assert_called_with('nonce', 'FAKE-UUID')
+
     def test_mon_hosts(self):
         self.patch_requires_class('_relations')
         relation = mock.MagicMock()

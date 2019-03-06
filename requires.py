@@ -14,6 +14,7 @@
 
 import ipaddress
 import socket
+import uuid
 
 # the reactive framework unfortunately does not grok `import as` in conjunction
 # with decorators on class instance methods, so we have to revert to `from ...`
@@ -37,7 +38,7 @@ class CephRBDMirrorRequires(Endpoint):
 
         This is used when requesting a key from Ceph.
 
-        The constructor exists mainly for testing purposes.
+        The unique_id constructor parameter exists mainly for testing purposes.
         """
         if unique_id:
             self.unique_id = unique_id
@@ -71,14 +72,23 @@ class CephRBDMirrorRequires(Endpoint):
         clear_flag(self.expand_name('{endpoint_name}.connected'))
 
     def request_key(self):
+        """Request key from Ceph by providing our unique ID."""
         for relation in self.relations:
             relation.to_publish['unique_id'] = self.unique_id
+
+    def refresh_pools(self):
+        """Refresh list of pools by setting a nonce on the relation."""
+        for relation in self.relations:
+            relation.to_publish['nonce'] = str(uuid.uuid4())
 
     def create_replicated_pool(self, name, replicas=3, weight=None,
                                pg_num=None, group=None, namespace=None,
                                app_name=None, max_bytes=None,
                                max_objects=None):
         """Request replicated pool setup.
+
+        Refer to charm-helpers ``add_op_create_replicated_pool`` function for
+        documentation of parameters.
         """
         # Ensure type of numeric values before sending over the wire
         replicas = int(replicas) if replicas else None
@@ -111,6 +121,9 @@ class CephRBDMirrorRequires(Endpoint):
                             group=None, app_name=None, max_bytes=None,
                             max_objects=None):
         """Request erasure coded pool setup.
+
+        Refer to charm-helpers ``add_op_create_erasure_pool``function for
+        documentation of parameters.
         """
         # Ensure type of numeric values before sending over the wire
         weight = float(weight) if weight else None
@@ -137,14 +150,17 @@ class CephRBDMirrorRequires(Endpoint):
 
     @property
     def auth(self):
+        """Retrieve ``auth`` from relation data."""
         return self.all_joined_units.received['auth']
 
     @property
     def key(self):
+        """Retrieve key from relation data."""
         return self.all_joined_units.received[self.key_name]
 
     def mon_hosts(self):
-        """
+        """Providwe iterable with address of individual related ceph-mon units.
+
         NOTE(fnordahl): As much as this should and could have been a property
         we have pre-existing interfaces providing this as a function.  To be
         able to use the same code for relation adaption etc in
