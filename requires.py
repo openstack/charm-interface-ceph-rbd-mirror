@@ -29,6 +29,7 @@ from charms.reactive import (
 )
 
 import charmhelpers.contrib.storage.linux.ceph as ch_ceph
+import charmhelpers.contrib.network.ip as ch_ip
 
 
 class CephRBDMirrorRequires(Endpoint):
@@ -182,11 +183,33 @@ class CephRBDMirrorRequires(Endpoint):
 
     @property
     def public_network(self):
-        pass
+        """Get CIDR for the Ceph public network.
+
+        The public network address advertiesed on the relation is mapped to the
+        corrensponding local interface from which we get the netmask/cidr of
+        the network.
+
+        :returns: CIDR or None
+        :rtype: Option[str, None]
+        """
+        public_addr = self.all_joined_units.received['ceph-public-address']
+        if public_addr:
+            return ch_ip.resolve_network_cidr(public_addr)
 
     @property
     def cluster_network(self):
-        pass
+        """Get CIDR for the Ceph cluster network.
+
+        The cluster network address advertiesed on the relation is mapped to
+        the corrensponding local interface from which we get the netmask/cidr
+        of the network.
+
+        :returns: CIDR or None
+        :rtype: Option[str, None]
+        """
+        cluster_addr = self.all_joined_units.received['ceph-cluster-address']
+        if cluster_addr:
+            return ch_ip.resolve_network_cidr(cluster_addr)
 
     @property
     def pools(self):

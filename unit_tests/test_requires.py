@@ -189,3 +189,23 @@ class TestCephRBDMirrorRequires(test_utils.PatchHelper):
         self._relations.__iter__.return_value = [relation]
         self.assertEqual(list(self.requires_class.mon_hosts()),
                          ['[2001:db8:42::1]:6789', '192.0.2.1:6789'])
+
+    def test_public_network(self):
+        self.patch_requires_class('_all_joined_units')
+        self._all_joined_units.received.__getitem__.return_value = '192.0.2.1'
+        self.patch_object(requires.ch_ip, 'resolve_network_cidr')
+        self.resolve_network_cidr.return_value = '192.0.2.0/24'
+        self.assertEqual(self.requires_class.public_network, '192.0.2.0/24')
+        self._all_joined_units.received.__getitem__.assert_called_once_with(
+            'ceph-public-address')
+        self.resolve_network_cidr.assert_called_once_with('192.0.2.1')
+
+    def test_cluster_network(self):
+        self.patch_requires_class('_all_joined_units')
+        self._all_joined_units.received.__getitem__.return_value = '192.0.2.1'
+        self.patch_object(requires.ch_ip, 'resolve_network_cidr')
+        self.resolve_network_cidr.return_value = '192.0.2.0/24'
+        self.assertEqual(self.requires_class.cluster_network, '192.0.2.0/24')
+        self._all_joined_units.received.__getitem__.assert_called_once_with(
+            'ceph-cluster-address')
+        self.resolve_network_cidr.assert_called_once_with('192.0.2.1')
