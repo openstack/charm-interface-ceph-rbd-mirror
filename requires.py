@@ -98,25 +98,26 @@ class CephRBDMirrorRequires(Endpoint):
         max_bytes = int(max_bytes) if max_bytes else None
         max_objects = int(max_objects) if max_objects else None
 
-        current_request = ch_ceph.get_previous_request(
-            self.relations[0].relation_id) or ch_ceph.CephBrokerRq()
-        for req in current_request.ops:
-            if 'op' in req and 'name' in req:
-                if req['op'] == 'create-pool' and req['name'] == name:
-                    # request already exists, don't create a new one
-                    return
-        current_request.add_op_create_replicated_pool(
-            name="{}".format(name),
-            replica_count=replicas,
-            pg_num=pg_num,
-            weight=weight,
-            group=group,
-            namespace=namespace,
-            app_name=app_name,
-            max_bytes=max_bytes,
-            max_objects=max_objects)
-        ch_ceph.send_request_if_needed(current_request,
-                                       relation=self.endpoint_name)
+        for relation in self.relations:
+            current_request = ch_ceph.get_previous_request(
+                relation.relation_id) or ch_ceph.CephBrokerRq()
+            for req in current_request.ops:
+                if 'op' in req and 'name' in req:
+                    if req['op'] == 'create-pool' and req['name'] == name:
+                        # request already exists, don't create a new one
+                        return
+            current_request.add_op_create_replicated_pool(
+                name="{}".format(name),
+                replica_count=replicas,
+                pg_num=pg_num,
+                weight=weight,
+                group=group,
+                namespace=namespace,
+                app_name=app_name,
+                max_bytes=max_bytes,
+                max_objects=max_objects)
+            ch_ceph.send_request_if_needed(current_request,
+                                           relation=self.endpoint_name)
 
     def create_erasure_pool(self, name, erasure_profile=None, weight=None,
                             group=None, app_name=None, max_bytes=None,
@@ -131,23 +132,24 @@ class CephRBDMirrorRequires(Endpoint):
         max_bytes = int(max_bytes) if max_bytes else None
         max_objects = int(max_objects) if max_objects else None
 
-        current_request = ch_ceph.get_previous_request(
-            self.relations[0].relation_id) or ch_ceph.CephBrokerRq()
-        for req in current_request.ops:
-            if 'op' in req and 'name' in req:
-                if req['op'] == 'create-pool' and req['name'] == name:
-                    # request already exists, don't create a new one
-                    return
-        current_request.add_op_create_erasure_pool(
-            name="{}".format(name),
-            erasure_profile=erasure_profile,
-            weight=weight,
-            group=group,
-            app_name=app_name,
-            max_bytes=max_bytes,
-            max_objects=max_objects)
-        ch_ceph.send_request_if_needed(current_request,
-                                       relation=self.endpoint_name)
+        for relation in self.relations:
+            current_request = ch_ceph.get_previous_request(
+                relation.relation_id) or ch_ceph.CephBrokerRq()
+            for req in current_request.ops:
+                if 'op' in req and 'name' in req:
+                    if req['op'] == 'create-pool' and req['name'] == name:
+                        # request already exists, don't create a new one
+                        return
+            current_request.add_op_create_erasure_pool(
+                name="{}".format(name),
+                erasure_profile=erasure_profile,
+                weight=weight,
+                group=group,
+                app_name=app_name,
+                max_bytes=max_bytes,
+                max_objects=max_objects)
+            ch_ceph.send_request_if_needed(current_request,
+                                           relation=self.endpoint_name)
 
     @property
     def auth(self):
