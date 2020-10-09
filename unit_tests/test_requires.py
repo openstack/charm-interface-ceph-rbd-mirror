@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import mock
 import requires
 
@@ -209,3 +210,29 @@ class TestCephRBDMirrorRequires(test_utils.PatchHelper):
         self._all_joined_units.received.__getitem__.assert_called_once_with(
             'ceph-cluster-address')
         self.resolve_network_cidr.assert_called_once_with('192.0.2.1')
+
+    def test_maybe_send_rq(self):
+        self.patch_requires_class('_relations')
+        relation = mock.MagicMock()
+        self._relations.__iter__.return_value = [relation]
+        self.patch_object(requires.ch_ceph, 'send_request_if_needed')
+        self.requires_class.maybe_send_rq('aRq')
+        self.send_request_if_needed.assert_called_once_with(
+            'aRq', relation='some-endpoint')
+
+    def test_broker_requests(self):
+        self.patch_requires_class('_all_joined_units')
+        self._all_joined_units.received.__contains__.return_value = True
+        self._all_joined_units.received.__getitem__.return_value = [
+            json.dumps({'fakereq': 0}),
+            json.dumps({'fakereq': 1}),
+        ]
+        for rq in self.requires_class.broker_requests:
+            self.assertIn(rq['fakereq'], (0, 1))
+        self._all_joined_units.received.__contains__.return_value = False
+        with self.assertRaises(StopIteration):
+            next(self.requires_class.broker_requests)
+        self._all_joined_units.received.__contains__.return_value = True
+        self._all_joined_units.received.__getitem__.return_value = None
+        with self.assertRaises(StopIteration):
+            next(self.requires_class.broker_requests)

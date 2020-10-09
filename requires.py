@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import ipaddress
+import json
 import socket
 import uuid
 
@@ -151,6 +152,24 @@ class CephRBDMirrorRequires(Endpoint):
             ch_ceph.send_request_if_needed(current_request,
                                            relation=self.endpoint_name)
 
+    def maybe_send_rq(self, rq):
+        """Send single broker request with all operations if needed.
+
+        The rbd-mirror charm has two endpoints using this interface connected
+        to the ceph-mon in the local and remote clusters. Subsequently each
+        relation typically only has one other participant, the ceph-mon.
+
+        The charm will recieve a verbatim copy of every broker request the
+        ceph-mon knows about in one end and then extract and filter all the
+        operations and collapse into one new single broker request that is
+        maintained with the ceph-mon in the other end.
+
+        :param rq: Broker Request to evaluate for sending.
+        :type rq: ch_ceph.CephBrokerRq
+        """
+        for relation in self.relations:
+            ch_ceph.send_request_if_needed(rq, relation=self.endpoint_name)
+
     @property
     def auth(self):
         """Retrieve ``auth`` from relation data."""
@@ -216,3 +235,12 @@ class CephRBDMirrorRequires(Endpoint):
     @property
     def pools(self):
         return self.all_joined_units.received['pools']
+
+    @property
+    def broker_requests(self):
+        if ('broker_requests' in self.all_joined_units.received and
+                self.all_joined_units.received['broker_requests'] is not None):
+            for json_rq in self.all_joined_units.received['broker_requests']:
+                yield json.loads(json_rq)
+        # Empty return in generator provides empty iterator and not None PEP479
+        return
