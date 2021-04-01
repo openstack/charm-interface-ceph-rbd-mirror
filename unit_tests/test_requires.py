@@ -16,6 +16,8 @@ import json
 import mock
 import requires
 
+from netaddr.core import AddrFormatError
+
 import charms_openstack.test_utils as test_utils
 
 
@@ -201,6 +203,10 @@ class TestCephRBDMirrorRequires(test_utils.PatchHelper):
             'ceph-public-address')
         self.resolve_network_cidr.assert_called_once_with('192.0.2.1')
 
+        # Test no netmask condition
+        self.resolve_network_cidr.side_effect = AddrFormatError()
+        self.assertEqual(self.requires_class.public_network, None)
+
     def test_cluster_network(self):
         self.patch_requires_class('_all_joined_units')
         self._all_joined_units.received.__getitem__.return_value = '192.0.2.1'
@@ -210,6 +216,10 @@ class TestCephRBDMirrorRequires(test_utils.PatchHelper):
         self._all_joined_units.received.__getitem__.assert_called_once_with(
             'ceph-cluster-address')
         self.resolve_network_cidr.assert_called_once_with('192.0.2.1')
+
+        # Test no netmask condition
+        self.resolve_network_cidr.side_effect = AddrFormatError()
+        self.assertEqual(self.requires_class.cluster_network, None)
 
     def test_maybe_send_rq(self):
         self.patch_requires_class('_relations')

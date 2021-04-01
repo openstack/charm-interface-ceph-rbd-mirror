@@ -17,6 +17,8 @@ import json
 import socket
 import uuid
 
+from netaddr.core import AddrFormatError
+
 # the reactive framework unfortunately does not grok `import as` in conjunction
 # with decorators on class instance methods, so we have to revert to `from ...`
 # imports
@@ -215,7 +217,13 @@ class CephRBDMirrorRequires(Endpoint):
         """
         public_addr = self.all_joined_units.received['ceph-public-address']
         if public_addr:
-            return ch_ip.resolve_network_cidr(public_addr)
+            try:
+                return ch_ip.resolve_network_cidr(public_addr)
+            except AddrFormatError:
+                # LP#1898299 in some cases the netmask will be None, which
+                # leads to an AddrFormatError. In this case, we should return
+                # None
+                return None
 
     @property
     def cluster_network(self):
@@ -230,7 +238,13 @@ class CephRBDMirrorRequires(Endpoint):
         """
         cluster_addr = self.all_joined_units.received['ceph-cluster-address']
         if cluster_addr:
-            return ch_ip.resolve_network_cidr(cluster_addr)
+            try:
+                return ch_ip.resolve_network_cidr(cluster_addr)
+            except AddrFormatError:
+                # LP#1898299 in some cases the netmask will be None, which
+                # leads to an AddrFormatError. In this case, we should return
+                # None
+                return None
 
     @property
     def pools(self):
